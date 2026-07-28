@@ -74,8 +74,31 @@ const commands = [
                 .setDescription("Kanał do wysyłania powiadomień")
                 .setRequired(true)
         )
-        .toJSON()
+        .toJSON(),
+    new SlashCommandBuilder()
+    .setName("dodaj-streamera")
+    .setDescription("Dodaj streamera do obserwacji")
+    .addStringOption(option =>
+        option
+            .setName("kanal")
+            .setDescription("Link do kanału Twitch")
+            .setRequired(true)
+    )
+    .toJSON()
 ];
+
+function extractLogin(input) {
+
+    let login = input.trim().toLowerCase();
+
+    login = login.replace("https://www.twitch.tv/", "");
+    login = login.replace("https://twitch.tv/", "");
+    login = login.replace("http://twitch.tv/", "");
+    login = login.replace("www.twitch.tv/", "");
+    login = login.replace("twitch.tv/", "");
+
+    return login;
+}
 
 client.once("ready", async () => {
 
@@ -132,5 +155,78 @@ client.on(Events.InteractionCreate, async interaction => {
                 ephemeral: true
             });
         }
+    }
+    if (interaction.commandName === "dodaj-streamera") {
+
+    const input = interaction.options.getString("kanal");
+
+    const login = extractLogin(input);
+
+    try {
+
+        const streamer = await getStreamer(login);
+
+        if (!streamer) {
+
+            await interaction.reply({
+                content: "Nie znaleziono takiego streamera.",
+                ephemeral: true
+            });
+
+            return;
+        }
+
+        let wynik = await pool.query(`
+            SELECT id_streamera
+            FROM "Streamerzy"
+            WHERE id_urz_twitcha = $1
+        `, [Number(streamer.id)]);
+
+        let idStreamera;
+
+        if (wynik.rows.length === 0) {
+
+            const nowyStreamer = await pool.query(`
+                INSERT INTO "Streamerzy"
+                (id_urz_twitcha, nazwa_kanalu)
+                VALUES ($1, $2)
+                RETURNING id_streamera
+            `, [
+                Number(streamer.id),
+                streamer.login
+            ]);
+
+            idStreamera = nowyStreamer.rows[0].id_streamera;
+
+        } else {
+
+            idStreamera = wynik.rows[0].id_streamera;
+
+        }
+
+        await pool.query(`
+            INSERT INTO "Obserwowani"
+            (id_serwera, id_streamera)
+            VALUES ($1, $2)
+            ON CONFLICT DO NOTHING
+        `, [
+            interaction.guild.id,
+            idStreamera
+        ]);
+
+        await interaction.reply({
+            content: `Dodano streamera ${streamer.display_name}`,
+            ephemeral: true
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        await interaction.reply({
+            content: "Wystąpił błąd podczas dodawania streamera.",
+            ephemeral: true
+        });
+    }
     }
 });
