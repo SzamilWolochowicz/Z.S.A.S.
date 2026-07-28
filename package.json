@@ -1,6 +1,8 @@
 {
   "dependencies": {
+    "@discordjs/builders": "^1.14.1",
     "discord.js": "^14.27.0",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "pg": "^8.22.0"
   }
 }
