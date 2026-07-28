@@ -99,17 +99,6 @@ client.once("ready", async () => {
         console.error(error);
 
     }
-    try {
-
-    const streamer = await getStreamer("ewroon");
-
-    console.log(streamer);
-
-} catch (error) {
-
-    console.error(error);
-
-}
 });
 
 client.on(Events.InteractionCreate, async interaction => {
