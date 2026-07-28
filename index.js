@@ -20,3 +20,8 @@ app.get("/", (req, res) => {
 app.listen(process.env.PORT || 3000, () => {
     console.log("Serwer uruchomiony");
 });
+
+client.once("ready", () => {
+console.log(`Zalogowano jako ${client.user.tag}`);
+console.log(`Serwery: ${client.guilds.cache.size}`);
+});
