@@ -1,3 +1,4 @@
+const axios = require("axios");
 const express = require("express");
 const { Client, GatewayIntentBits, Events, REST, Routes, SlashCommandBuilder } = require("discord.js");
 
@@ -9,6 +10,43 @@ ssl: {
 rejectUnauthorized: false
 }
 });
+
+async function getTwitchToken() {
+
+    const response = await axios.post(
+        "https://id.twitch.tv/oauth2/token",
+        null,
+        {
+            params: {
+                client_id: process.env.ID_Twitch,
+                client_secret: process.env.TWITCH_CLIENT_SECRET,
+                grant_type: "client_credentials"
+            }
+        }
+    );
+
+    return response.data.access_token;
+}
+
+async function getStreamer(login) {
+
+    const token = await getTwitchToken();
+
+    const response = await axios.get(
+        "https://api.twitch.tv/helix/users",
+        {
+            params: {
+                login: login
+            },
+            headers: {
+                "Client-Id": process.env.ID_Twitch,
+                "Authorization": `Bearer ${token}`
+            }
+        }
+    );
+
+    return response.data.data[0];
+}
 
 const app = express();
 
@@ -61,6 +99,17 @@ client.once("ready", async () => {
         console.error(error);
 
     }
+    try {
+
+    const streamer = await getStreamer("ewroon");
+
+    console.log(streamer);
+
+} catch (error) {
+
+    console.error(error);
+
+}
 });
 
 client.on(Events.InteractionCreate, async interaction => {
