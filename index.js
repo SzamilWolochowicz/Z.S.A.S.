@@ -84,6 +84,20 @@ const commands = [
             .setDescription("Link do kanału Twitch")
             .setRequired(true)
     )
+    .toJSON(),
+    new SlashCommandBuilder()
+    .setName("ustaw-wiadomosc")
+    .setDescription("Ustaw wiadomość wysyłaną przy starcie streama")
+    .addStringOption(option =>
+        option
+            .setName("tresc")
+            .setDescription("Treść wiadomości")
+            .setRequired(true)
+    )
+    .toJSON(),
+    new SlashCommandBuilder()
+    .setName("podglad-wiadomosci")
+    .setDescription("Pokaż aktualną wiadomość")
     .toJSON()
 ];
 
@@ -225,6 +239,66 @@ client.on(Events.InteractionCreate, async interaction => {
 
         await interaction.reply({
             content: "Wystąpił błąd podczas dodawania streamera.",
+            ephemeral: true
+        });
+    }
+    }
+
+    if (interaction.commandName === "ustaw-wiadomosc") {
+
+    const tresc = interaction.options.getString("tresc");
+
+    try {
+
+        await pool.query(`
+            UPDATE "Serwery"
+            SET wiadomosc = $1
+            WHERE id_serwera = $2
+        `, [
+            tresc,
+            interaction.guild.id
+        ]);
+
+        await interaction.reply({
+            content: "Wiadomość została zapisana",
+            ephemeral: true
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        await interaction.reply({
+            content: "Błąd przy zapisie wiadomości",
+            ephemeral: true
+        });
+    }
+    }
+    if (interaction.commandName === "podglad-wiadomosci") {
+
+    try {
+
+        const wynik = await pool.query(`
+            SELECT wiadomosc
+            FROM "Serwery"
+            WHERE id_serwera = $1
+        `, [
+            interaction.guild.id
+        ]);
+
+        const wiadomosc = wynik.rows[0]?.wiadomosc;
+
+        await interaction.reply({
+            content: wiadomosc || "Brak ustawionej wiadomości",
+            ephemeral: true
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        await interaction.reply({
+            content: "Błąd przy próbie pobrania wiadomości",
             ephemeral: true
         });
     }
