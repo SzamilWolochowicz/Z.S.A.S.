@@ -90,6 +90,10 @@ const commands = [
                 .setDescription("Wiadomość {url}")
                 .setRequired(true)
         )
+        .toJSON(),
+        new SlashCommandBuilder()
+        .setName("lista")
+        .setDescription("Pokaż listę obserwowanych streamerów")
         .toJSON()
 ];
 
@@ -237,4 +241,51 @@ client.on(Events.InteractionCreate, async interaction => {
         });
     }
     }
+    if (interaction.commandName === "lista") {
+
+    try {
+
+        const wynik = await pool.query(`
+            SELECT s.nazwa_kanalu
+            FROM "Obserwowani" o
+            JOIN "Streamerzy" s
+            ON o.id_streamera = s.id_streamera
+            WHERE o.id_serwera = $1
+            ORDER BY s.nazwa_kanalu
+        `, [
+            interaction.guild.id
+        ]);
+
+        if (wynik.rows.length === 0) {
+
+            await interaction.reply({
+                content: "Brak obserwowanych streamerów.",
+                ephemeral: true
+            });
+
+            return;
+        }
+
+        const lista = wynik.rows
+            .map((row, index) =>
+                `${index + 1}. ${row.nazwa_kanalu}`
+            )
+            .join("\n");
+
+        await interaction.reply({
+            content: `📺 Obserwowani streamerzy:\n\n${lista}`,
+            ephemeral: true
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        await interaction.reply({
+            content: "❌ Nie udało się pobrać listy.",
+            ephemeral: true
+        });
+
+    }
+}
 });
