@@ -76,29 +76,21 @@ const commands = [
         )
         .toJSON(),
     new SlashCommandBuilder()
-    .setName("dodaj-streamera")
-    .setDescription("Dodaj streamera do obserwacji")
-    .addStringOption(option =>
-        option
-            .setName("kanal")
-            .setDescription("Link do kanału Twitch")
-            .setRequired(true)
-    )
-    .toJSON(),
-    new SlashCommandBuilder()
-    .setName("ustaw-wiadomosc")
-    .setDescription("Ustaw wiadomość wysyłaną przy starcie streama")
-    .addStringOption(option =>
-        option
-            .setName("tresc")
-            .setDescription("Treść wiadomości")
-            .setRequired(true)
-    )
-    .toJSON(),
-    new SlashCommandBuilder()
-    .setName("podglad-wiadomosci")
-    .setDescription("Pokaż aktualną wiadomość")
-    .toJSON()
+        .setName("dodaj-streamera")
+        .setDescription("Dodaj streamera do powiadomień")
+        .addStringOption(option =>
+            option
+                .setName("kanal")
+                .setDescription("Link do kanału")
+                .setRequired(true)
+        )
+        .addStringOption(option =>
+            option
+                .setName("wiadomosc")
+                .setDescription("Wiadomość {url}")
+                .setRequired(true)
+        )
+        .toJSON()
 ];
 
 function extractLogin(input) {
@@ -173,6 +165,7 @@ client.on(Events.InteractionCreate, async interaction => {
     if (interaction.commandName === "dodaj-streamera") {
 
     const input = interaction.options.getString("kanal");
+    const wiadomosc = interaction.options.getString("wiadomosc");
 
     const login = extractLogin(input);
 
@@ -219,86 +212,27 @@ client.on(Events.InteractionCreate, async interaction => {
         }
 
         await pool.query(`
-            INSERT INTO "Obserwowani"
-            (id_serwera, id_streamera)
-            VALUES ($1, $2)
-            ON CONFLICT DO NOTHING
+          INSERT INTO "Obserwowani"
+         (id_serwera, id_streamera, wiadomosc)
+          VALUES ($1, $2, $3)
+          ON CONFLICT (id_serwera, id_streamera)
+          DO UPDATE SET
+          wiadomosc = EXCLUDED.wiadomosc
         `, [
-            interaction.guild.id,
-            idStreamera
-        ]);
-
-        await interaction.reply({
-            content: `Dodano streamera ${streamer.display_name}`,
-            ephemeral: true
-        });
-
+         interaction.guild.id,
+        idStreamera,
+       wiadomosc
+    ]);
+    await interaction.reply({
+        content: `Dodano streamera ${streamer.display_name} do bazy`,
+        ephemeral: true
+    });
     } catch (error) {
 
         console.error(error);
 
         await interaction.reply({
             content: "Wystąpił błąd podczas dodawania streamera.",
-            ephemeral: true
-        });
-    }
-    }
-
-    if (interaction.commandName === "ustaw-wiadomosc") {
-
-    const tresc = interaction.options.getString("tresc");
-
-    try {
-
-        await pool.query(`
-            UPDATE "Serwery"
-            SET wiadomosc = $1
-            WHERE id_serwera = $2
-        `, [
-            tresc,
-            interaction.guild.id
-        ]);
-
-        await interaction.reply({
-            content: "Wiadomość została zapisana",
-            ephemeral: true
-        });
-
-    } catch (error) {
-
-        console.error(error);
-
-        await interaction.reply({
-            content: "Błąd przy zapisie wiadomości",
-            ephemeral: true
-        });
-    }
-    }
-    if (interaction.commandName === "podglad-wiadomosci") {
-
-    try {
-
-        const wynik = await pool.query(`
-            SELECT wiadomosc
-            FROM "Serwery"
-            WHERE id_serwera = $1
-        `, [
-            interaction.guild.id
-        ]);
-
-        const wiadomosc = wynik.rows[0]?.wiadomosc;
-
-        await interaction.reply({
-            content: wiadomosc || "Brak ustawionej wiadomości",
-            ephemeral: true
-        });
-
-    } catch (error) {
-
-        console.error(error);
-
-        await interaction.reply({
-            content: "Błąd przy próbie pobrania wiadomości",
             ephemeral: true
         });
     }
