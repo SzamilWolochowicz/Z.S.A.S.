@@ -94,6 +94,16 @@ const commands = [
         new SlashCommandBuilder()
         .setName("lista")
         .setDescription("Pokaż listę obserwowanych streamerów")
+        .toJSON(),
+        new SlashCommandBuilder()
+        .setName("podglad-wiadomosci")
+        .setDescription("Pokaż podgląd wiadomości")
+        .addStringOption(option =>
+        option
+            .setName("kanal")
+            .setDescription("Kanał Twitch")
+            .setRequired(true)
+        )
         .toJSON()
 ];
 
@@ -282,10 +292,68 @@ client.on(Events.InteractionCreate, async interaction => {
         console.error(error);
 
         await interaction.reply({
-            content: "Błąd przy pobieraniu listy.",
+            content: "Błąd przy pobieraniu listy",
             ephemeral: true
         });
 
+    }
+}
+if (interaction.commandName === "podglad-wiadomosci") {
+
+    const input = interaction.options.getString("kanal");
+
+    const login = extractLogin(input);
+
+    try {
+
+        const wynik = await pool.query(`
+            SELECT o.wiadomosc,
+                   s.nazwa_kanalu
+            FROM "Obserwowani" o
+            JOIN "Streamerzy" s
+            ON o.id_streamera = s.id_streamera
+            WHERE o.id_serwera = $1
+            AND LOWER(s.nazwa_kanalu) = LOWER($2)
+        `, [
+            interaction.guild.id,
+            login
+        ]);
+
+        if (wynik.rows.length === 0) {
+
+            await interaction.reply({
+                content: "Ten streamer nie jest obserwowany",
+                ephemeral: true
+            });
+
+            return;
+        }
+
+        let wiadomosc = wynik.rows[0].wiadomosc;
+
+        wiadomosc = wiadomosc
+            .replaceAll(
+                "{url}",
+                `https://twitch.tv/${wynik.rows[0].nazwa_kanalu}`
+            )
+            .replaceAll(
+                "{streamer}",
+                wynik.rows[0].nazwa_kanalu.toUpperCase()
+            );
+
+        await interaction.reply({
+            content: wiadomosc,
+            ephemeral: true
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        await interaction.reply({
+            content: "Nie udało się pobrać podglądu",
+            ephemeral: true
+        });
     }
 }
 });
