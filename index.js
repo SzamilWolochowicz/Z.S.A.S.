@@ -104,6 +104,32 @@ const commands = [
             .setDescription("Kanał Twitch")
             .setRequired(true)
         )
+        .toJSON(),
+        new SlashCommandBuilder()
+    .setName("edytuj-wiadomosc")
+    .setDescription("Edytuj wiadomość dla streamera")
+    .addStringOption(option =>
+        option
+            .setName("kanal")
+            .setDescription("Kanał Twitch")
+            .setRequired(true)
+        )
+        .addStringOption(option =>
+        option
+            .setName("wiadomosc")
+            .setDescription("Nowa wiadomość")
+            .setRequired(true)
+        )
+        .toJSON(),
+        new SlashCommandBuilder()
+        .setName("usun-streamera")
+        .setDescription("Usuń streamera z obserwowanych")
+        .addStringOption(option =>
+            option
+            .setName("kanal")
+            .setDescription("Kanał Twitch")
+            .setRequired(true)
+        )
         .toJSON()
 ];
 
@@ -354,6 +380,119 @@ if (interaction.commandName === "podglad-wiadomosci") {
             content: "Nie udało się pobrać podglądu",
             ephemeral: true
         });
+    }
+}
+if (interaction.commandName === "edytuj-wiadomosc") {
+
+    const input = interaction.options.getString("kanal");
+    const nowaWiadomosc = interaction.options.getString("wiadomosc");
+
+    const login = extractLogin(input);
+
+    try {
+
+        const wynik = await pool.query(`
+            SELECT s.id_streamera
+            FROM "Obserwowani" o
+            JOIN "Streamerzy" s
+            ON o.id_streamera = s.id_streamera
+            WHERE o.id_serwera = $1
+            AND LOWER(s.nazwa_kanalu) = LOWER($2)
+        `, [
+            interaction.guild.id,
+            login
+        ]);
+
+        if (wynik.rows.length === 0) {
+
+            await interaction.reply({
+                content: "Ten streamer nie jest obserwowany",
+                ephemeral: true
+            });
+
+            return;
+        }
+
+        await pool.query(`
+            UPDATE "Obserwowani"
+            SET wiadomosc = $1
+            WHERE id_serwera = $2
+            AND id_streamera = $3
+        `, [
+            nowaWiadomosc,
+            interaction.guild.id,
+            wynik.rows[0].id_streamera
+        ]);
+
+        await interaction.reply({
+            content: `Zaktualizowano wiadomość dla ${login}`,
+            ephemeral: true
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        await interaction.reply({
+            content: "Nie udało się zaktualizować wiadomości",
+            ephemeral: true
+        });
+
+    }
+}
+if (interaction.commandName === "usun-streamera") {
+
+    const input = interaction.options.getString("kanal");
+
+    const login = extractLogin(input);
+
+    try {
+
+        const wynik = await pool.query(`
+            SELECT s.id_streamera
+            FROM "Obserwowani" o
+            JOIN "Streamerzy" s
+            ON o.id_streamera = s.id_streamera
+            WHERE o.id_serwera = $1
+            AND LOWER(s.nazwa_kanalu) = LOWER($2)
+        `, [
+            interaction.guild.id,
+            login
+        ]);
+
+        if (wynik.rows.length === 0) {
+
+            await interaction.reply({
+                content: "Ten streamer nie jest obserwowany",
+                ephemeral: true
+            });
+
+            return;
+        }
+
+        await pool.query(`
+            DELETE FROM "Obserwowani"
+            WHERE id_serwera = $1
+            AND id_streamera = $2
+        `, [
+            interaction.guild.id,
+            wynik.rows[0].id_streamera
+        ]);
+
+        await interaction.reply({
+            content: `Usunięto streamera ${login} z listy obserwowanych`,
+            ephemeral: true
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        await interaction.reply({
+            content: "Nie udało się usunąć streamera",
+            ephemeral: true
+        });
+
     }
 }
 });
