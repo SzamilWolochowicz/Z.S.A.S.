@@ -49,6 +49,35 @@ async function getStreamer(login) {
     return response.data.data[0];
 }
 
+async function createEventSubSubscription(twitchUserId) {
+
+    const token = await getTwitchToken();
+
+    await axios.post(
+        "https://api.twitch.tv/helix/eventsub/subscriptions",
+        {
+            type: "stream.online",
+            version: "1",
+            condition: {
+                broadcaster_user_id: String(twitchUserId)
+            },
+            transport: {
+                method: "webhook",
+                callback: "https://z-s-a-s.onrender.com/webhook",
+                secret: process.env.TWITCH_WEBHOOK_SECRET
+            }
+        },
+        {
+            headers: {
+                "Client-Id": process.env.ID_Twitch,
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+            }
+        }
+    );
+}
+
+
 const app = express();
 app.use(express.json());
 
@@ -74,7 +103,12 @@ app.post("/webhook", async (req, res) => {
         );
     }
 
-    console.log(req.body);
+    console.log("Webhook!");
+    console.log(messageType);
+
+    console.log(
+        JSON.stringify(req.body, null, 2)
+    );
 
     res.sendStatus(200);
 
@@ -283,6 +317,9 @@ client.on(Events.InteractionCreate, async interaction => {
         idStreamera,
        wiadomosc
     ]);
+    await createEventSubSubscription(
+    Number(streamer.id)
+);
     await interaction.reply({
         content: `Dodano streamera ${streamer.display_name} do bazy`,
         ephemeral: true
