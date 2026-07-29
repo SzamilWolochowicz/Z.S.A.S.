@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const axios = require("axios");
 const express = require("express");
 const { Client, GatewayIntentBits, Events, REST, Routes, SlashCommandBuilder } = require("discord.js");
@@ -49,6 +50,7 @@ async function getStreamer(login) {
 }
 
 const app = express();
+app.use(express.json());
 
 const client = new Client({
     intents: [GatewayIntentBits.Guilds]
@@ -58,6 +60,24 @@ client.login(process.env.Token_Discord);
 
 app.get("/", (req, res) => {
     res.send("Program działa!");
+});
+
+app.post("/webhook", async (req, res) => {
+
+    const messageType =
+        req.header("Twitch-Eventsub-Message-Type");
+
+    if (messageType === "webhook_callback_verification") {
+
+        return res.status(200).send(
+            req.body.challenge
+        );
+    }
+
+    console.log(req.body);
+
+    res.sendStatus(200);
+
 });
 
 app.listen(process.env.PORT || 3000, () => {
