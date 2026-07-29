@@ -180,7 +180,7 @@ client.on(Events.InteractionCreate, async interaction => {
         if (!streamer) {
 
             await interaction.reply({
-                content: "Nie znaleziono takiego streamera.",
+                content: "Nie znaleziono takiego streamera",
                 ephemeral: true
             });
 
@@ -236,7 +236,7 @@ client.on(Events.InteractionCreate, async interaction => {
         console.error(error);
 
         await interaction.reply({
-            content: "Wystąpił błąd podczas dodawania streamera.",
+            content: "Wystąpił błąd podczas dodawania streamera",
             ephemeral: true
         });
     }
@@ -259,7 +259,7 @@ client.on(Events.InteractionCreate, async interaction => {
         if (wynik.rows.length === 0) {
 
             await interaction.reply({
-                content: "Brak obserwowanych streamerów.",
+                content: "Brak obserwowanych streamerów",
                 ephemeral: true
             });
 
@@ -267,22 +267,22 @@ client.on(Events.InteractionCreate, async interaction => {
         }
 
         const lista = wynik.rows
-            .map((row, index) =>
-                `${index + 1}. ${row.nazwa_kanalu}`
-            )
-            .join("\n");
+        .map((row) =>
+        `• ${row.nazwa_kanalu}\n  https://twitch.tv/${row.nazwa_kanalu}`
+        )
+        .join("\n\n");
 
         await interaction.reply({
-            content: `📺 Obserwowani streamerzy:\n\n${lista}`,
-            ephemeral: true
-        });
+        content: `Lista obserwowanych streamerów: \n\n${lista}`,
+        ephemeral: true
+    });
 
     } catch (error) {
 
         console.error(error);
 
         await interaction.reply({
-            content: "❌ Nie udało się pobrać listy.",
+            content: "Błąd przy pobieraniu listy.",
             ephemeral: true
         });
 
