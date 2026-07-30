@@ -166,13 +166,27 @@ for (const row of obserwacje.rows) {
             `https://twitch.tv/${req.body.event.broadcaster_user_login}`
         );
 
-        const kanal = await client.channels.fetch(
-    row.id_kanalu
-);
+    try {
 
-await kanal.send(
-    wiadomosc
-    );
+        const kanal = await client.channels.fetch(
+            row.id_kanalu
+        );
+
+        await kanal.send(wiadomosc);
+
+        console.log(
+            `Wysłano powiadomienie na kanał ${row.id_kanalu}`
+        );
+
+    } catch (error) {
+
+        console.error(
+            `Błąd wysyłania na kanał ${row.id_kanalu}`
+        );
+
+        console.error(error);
+
+    }
 }
 
 }
