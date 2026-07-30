@@ -53,28 +53,44 @@ async function createEventSubSubscription(twitchUserId) {
 
     const token = await getTwitchToken();
 
-    await axios.post(
-        "https://api.twitch.tv/helix/eventsub/subscriptions",
-        {
-            type: "stream.online",
-            version: "1",
-            condition: {
-                broadcaster_user_id: String(twitchUserId)
+    try {
+
+        await axios.post(
+            "https://api.twitch.tv/helix/eventsub/subscriptions",
+            {
+                type: "stream.online",
+                version: "1",
+                condition: {
+                    broadcaster_user_id: String(twitchUserId)
+                },
+                transport: {
+                    method: "webhook",
+                    callback: "https://z-s-a-s.onrender.com/webhook",
+                    secret: process.env.TWITCH_WEBHOOK_SECRET
+                }
             },
-            transport: {
-                method: "webhook",
-                callback: "https://z-s-a-s.onrender.com/webhook",
-                secret: process.env.TWITCH_WEBHOOK_SECRET
+            {
+                headers: {
+                    "Client-Id": process.env.ID_Twitch,
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
             }
-        },
-        {
-            headers: {
-                "Client-Id": process.env.ID_Twitch,
-                "Authorization": `Bearer ${token}`,
-                "Content-Type": "application/json"
-            }
+        );
+
+    } catch (error) {
+
+        if (error.response?.status === 409) {
+
+            console.log(
+                `EventSub już istnieje dla ${twitchUserId}`
+            );
+
+            return;
         }
-    );
+
+        throw error;
+    }
 }
 
 
