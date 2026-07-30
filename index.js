@@ -254,6 +254,7 @@ const commands = [
             .setName("kanal")
             .setDescription("Kanał Twitch")
             .setRequired(true)
+            .setAutocomplete(true)
         )
         .toJSON(),
         new SlashCommandBuilder()
@@ -264,6 +265,7 @@ const commands = [
             .setName("kanal")
             .setDescription("Kanał Twitch")
             .setRequired(true)
+            .setAutocomplete(true)
         )
         .addStringOption(option =>
         option
@@ -280,6 +282,7 @@ const commands = [
             .setName("kanal")
             .setDescription("Kanał Twitch")
             .setRequired(true)
+            .setAutocomplete(true)
         )
         .toJSON()
 ];
@@ -322,6 +325,49 @@ client.once("ready", async () => {
 });
 
 client.on(Events.InteractionCreate, async interaction => {
+    if (interaction.isAutocomplete()) {
+
+    const focusedValue =
+        interaction.options.getFocused();
+
+    try {
+
+        const wynik = await pool.query(`
+            SELECT s.nazwa_kanalu
+            FROM "Obserwowani" o
+            JOIN "Streamerzy" s
+            ON o.id_streamera = s.id_streamera
+            WHERE o.id_serwera = $1
+            ORDER BY s.nazwa_kanalu
+        `, [
+            interaction.guild.id
+        ]);
+
+        const filtered = wynik.rows
+            .filter(row =>
+                row.nazwa_kanalu
+                    .toLowerCase()
+                    .includes(
+                        focusedValue.toLowerCase()
+                    )
+            )
+            .slice(0, 25);
+
+        await interaction.respond(
+            filtered.map(row => ({
+                name: row.nazwa_kanalu,
+                value: row.nazwa_kanalu
+            }))
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+    }
+
+    return;
+}
     if (!interaction.isChatInputCommand()) return;
     if (interaction.commandName === "ustaw-kanal") {
         const kanal = interaction.options.getChannel("kanal");
