@@ -110,6 +110,73 @@ app.post("/webhook", async (req, res) => {
         JSON.stringify(req.body, null, 2)
     );
 
+if (
+    messageType === "notification" &&
+    req.body.subscription.type === "stream.online"
+) {
+
+    const twitchId = Number(
+        req.body.event.broadcaster_user_id
+    );
+
+    console.log(
+        "Streamer rozpoczął transmisję:",
+        twitchId
+    );
+
+const streamerWynik = await pool.query(`
+    SELECT id_streamera,
+           nazwa_kanalu
+    FROM "Streamerzy"
+    WHERE id_urz_twitcha = $1
+`, [
+    twitchId
+]);
+
+if (streamerWynik.rows.length === 0) {
+    return res.sendStatus(200);
+}
+
+const streamer =
+    streamerWynik.rows[0];
+
+    const obserwacje = await pool.query(`
+    SELECT
+        o.wiadomosc,
+        s.id_kanalu
+    FROM "Obserwowani" o
+    JOIN "Serwery" s
+    ON s.id_serwera = o.id_serwera
+    WHERE o.id_streamera = $1
+`, [
+    streamer.id_streamera
+]);
+
+for (const row of obserwacje.rows) {
+
+    let wiadomosc = row.wiadomosc;
+
+    wiadomosc = wiadomosc
+        .replaceAll(
+            "{streamer}",
+            req.body.event.broadcaster_user_name
+        )
+        .replaceAll(
+            "{url}",
+            `https://twitch.tv/${req.body.event.broadcaster_user_login}`
+        );
+
+        const kanal = await client.channels.fetch(
+    row.id_kanalu
+);
+
+await kanal.send(
+    wiadomosc
+    );
+}
+
+}
+
     res.sendStatus(200);
 
 });
