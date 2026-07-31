@@ -858,4 +858,55 @@ client.on(
 
         }
     }
+    
+);
+client.on(
+    Events.MessageReactionRemove,
+    async (reaction, user) => {
+
+        if (user.bot) return;
+
+        try {
+
+            if (reaction.partial) {
+                await reaction.fetch();
+            }
+
+            const wynik = await pool.query(`
+                SELECT *
+                FROM "RoleReakcje"
+                WHERE id_wiadomosci = $1
+                AND emoji = $2
+            `, [
+                reaction.message.id,
+                reaction.emoji.name
+            ]);
+
+            if (wynik.rows.length === 0)
+                return;
+
+            const dane = wynik.rows[0];
+
+            if (!dane.usun_po_usunieciu)
+                return;
+
+            const member =
+                await reaction.message.guild.members.fetch(
+                    user.id
+                );
+
+            await member.roles.remove(
+                dane.id_roli
+            );
+
+            console.log(
+                `Usunięto rolę ${dane.id_roli} użytkownikowi ${user.tag}`
+            );
+
+        } catch (error) {
+
+            console.error(error);
+
+        }
+    }
 );
