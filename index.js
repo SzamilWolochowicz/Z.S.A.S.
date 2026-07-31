@@ -361,6 +361,8 @@ client.once("ready", async () => {
 
     console.log(`Zalogowano jako ${client.user.tag}`);
     console.log(`Serwery: ${client.guilds.cache.size}`);
+    
+    await listSubscriptions();
 
     const rest = new REST({ version: "10" })
         .setToken(process.env.Token_Discord);
@@ -948,3 +950,25 @@ client.on(
         }
     }
 );
+async function listSubscriptions() {
+
+    const token = await getTwitchToken();
+
+    const response = await axios.get(
+        "https://api.twitch.tv/helix/eventsub/subscriptions",
+        {
+            headers: {
+                "Client-Id": process.env.ID_Twitch,
+                "Authorization": `Bearer ${token}`
+            }
+        }
+    );
+
+    console.log(
+        JSON.stringify(
+            response.data,
+            null,
+            2
+        )
+    );
+};
