@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const axios = require("axios");
 const express = require("express");
-const { Client, GatewayIntentBits, Events, REST, Routes, SlashCommandBuilder } = require("discord.js");
+const {Client, GatewayIntentBits, Events, REST, Routes, SlashCommandBuilder, Partials} = require("discord.js");
 
 const { Pool } = require("pg");
 
@@ -98,7 +98,16 @@ const app = express();
 app.use(express.json());
 
 const client = new Client({
-    intents: [GatewayIntentBits.Guilds]
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMessageReactions
+    ],
+    partials: [
+        Partials.Message,
+        Partials.Channel,
+        Partials.Reaction
+    ]
 });
 
 client.login(process.env.Token_Discord);
@@ -216,6 +225,54 @@ app.listen(process.env.PORT || 3000, () => {
 });
 
 const commands = [
+    //Role za reakcje
+    new SlashCommandBuilder()
+    .setName("panel-rol")
+    .setDescription("Utwórz panel reaction roles")
+
+    .addStringOption(option =>
+        option
+            .setName("tytul")
+            .setDescription("Tytuł panelu")
+            .setRequired(true)
+    )
+
+    .addBooleanOption(option =>
+        option
+            .setName("jedna_rola")
+            .setDescription("Tylko jedna rola z tego panelu")
+            .setRequired(true)
+    )
+
+    .addBooleanOption(option =>
+        option
+            .setName("usun_po_usunieciu")
+            .setDescription("Usuń rolę po usunięciu reakcji")
+            .setRequired(true)
+    )
+
+    .addRoleOption(option =>
+        option
+            .setName("rola1")
+            .setDescription("Pierwsza rola")
+            .setRequired(true)
+    )
+
+    .addStringOption(option =>
+        option
+            .setName("emoji1")
+            .setDescription("Emoji dla pierwszej roli")
+            .setRequired(true)
+    )
+
+    .addStringOption(option =>
+        option
+            .setName("opis1")
+            .setDescription("Opis pierwszej roli")
+            .setRequired(true)
+    )
+    .toJSON(),
+    //Powiadomienia o streamach z Twitcha
     new SlashCommandBuilder()
         .setName("ustaw-kanal")
         .setDescription("Ustaw kanał powiadomień")
@@ -695,4 +752,110 @@ if (interaction.commandName === "usun-streamera") {
 
     }
 }
+if (interaction.commandName === "panel-rol") {
+
+    const tytul =
+        interaction.options.getString("tytul");
+
+    const jednaRola =
+        interaction.options.getBoolean(
+            "jedna_rola"
+        );
+
+    const usunPoUsunieciu =
+        interaction.options.getBoolean(
+            "usun_po_usunieciu"
+        );
+
+    const rola =
+        interaction.options.getRole("rola1");
+
+    const emoji =
+        interaction.options.getString("emoji1");
+
+    const opis =
+        interaction.options.getString("opis1");
+
+    const tresc =
+`${tytul}
+
+${emoji} - ${opis}`;
+
+    const msg =
+        await interaction.channel.send(tresc);
+
+    await msg.react(emoji);
+
+    await pool.query(`
+        INSERT INTO "RoleReakcje"
+        (
+            id_serwera,
+            id_wiadomosci,
+            emoji,
+            id_roli,
+            jedna_rola,
+            usun_po_usunieciu
+        )
+        VALUES ($1,$2,$3,$4,$5,$6)
+    `, [
+        interaction.guild.id,
+        msg.id,
+        emoji,
+        rola.id,
+        jednaRola,
+        usunPoUsunieciu
+    ]);
+
+    await interaction.reply({
+        content: "Panel utworzony",
+        ephemeral: true
+    });
+}
 });
+client.on(
+    Events.MessageReactionAdd,
+    async (reaction, user) => {
+
+        if (user.bot) return;
+
+        try {
+
+            if (reaction.partial) {
+                await reaction.fetch();
+            }
+
+            const wynik = await pool.query(`
+                SELECT *
+                FROM "RoleReakcje"
+                WHERE id_wiadomosci = $1
+                AND emoji = $2
+            `, [
+                reaction.message.id,
+                reaction.emoji.name
+            ]);
+
+            if (wynik.rows.length === 0)
+                return;
+
+            const dane = wynik.rows[0];
+
+            const member =
+                await reaction.message.guild.members.fetch(
+                    user.id
+                );
+
+            await member.roles.add(
+                dane.id_roli
+            );
+
+            console.log(
+                `Dodano rolę ${dane.id_roli} użytkownikowi ${user.tag}`
+            );
+
+        } catch (error) {
+
+            console.error(error);
+
+        }
+    }
+);
