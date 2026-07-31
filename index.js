@@ -910,3 +910,41 @@ client.on(
         }
     }
 );
+client.on(
+    Events.GuildDelete,
+    async guild => {
+
+        try {
+
+            await pool.query(`
+                DELETE FROM "Obserwowani"
+                WHERE id_serwera = $1
+            `, [
+                guild.id
+            ]);
+
+            await pool.query(`
+                DELETE FROM "Serwery"
+                WHERE id_serwera = $1
+            `, [
+                guild.id
+            ]);
+
+            await pool.query(`
+                DELETE FROM "RoleReakcje"
+                WHERE id_serwera = $1
+            `, [
+                guild.id
+            ]);
+
+            console.log(
+                `Usunięto dane serwera ${guild.id}`
+            );
+
+        } catch (error) {
+
+            console.error(error);
+
+        }
+    }
+);
