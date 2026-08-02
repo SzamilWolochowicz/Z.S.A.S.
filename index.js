@@ -1,7 +1,7 @@
 const crypto = require("crypto");
 const axios = require("axios");
 const express = require("express");
-const {Client, GatewayIntentBits, Events, REST, Routes, SlashCommandBuilder, Partials} = require("discord.js");
+const {Client, GatewayIntentBits, Events, REST, Routes, SlashCommandBuilder, Partials, EmbedBuilder} = require("discord.js");
 
 const { Pool } = require("pg");
 
@@ -38,6 +38,26 @@ async function getStreamer(login) {
         {
             params: {
                 login: login
+            },
+            headers: {
+                "Client-Id": process.env.ID_Twitch,
+                "Authorization": `Bearer ${token}`
+            }
+        }
+    );
+
+    return response.data.data[0];
+}
+
+async function getStreamInfo(twitchUserId) {
+
+    const token = await getTwitchToken();
+
+    const response = await axios.get(
+        "https://api.twitch.tv/helix/streams",
+        {
+            params: {
+                user_id: twitchUserId
             },
             headers: {
                 "Client-Id": process.env.ID_Twitch,
@@ -165,6 +185,9 @@ if (streamerWynik.rows.length === 0) {
 const streamer =
     streamerWynik.rows[0];
 
+const streamInfo =
+    await getStreamInfo(twitchId);
+
     const obserwacje = await pool.query(`
     SELECT
         o.wiadomosc,
@@ -193,15 +216,48 @@ for (const row of obserwacje.rows) {
 
     try {
 
-        const kanal = await client.channels.fetch(
-            row.id_kanalu
-        );
+const kanal = await client.channels.fetch(
+    row.id_kanalu
+);
 
-        await kanal.send(wiadomosc);
+const embed = new EmbedBuilder()
+    .setColor(0x9146FF)
+    .setTitle(
+        `Najnowsza informacja od ${req.body.event.broadcaster_user_name}!`
+    )
+    .setURL(
+        `https://twitch.tv/${req.body.event.broadcaster_user_login}`
+    )
+    .setDescription(
+        streamInfo?.title ||
+        "Brak tytułu transmisji"
+    )
+    .addFields({
+        name: "Kategoria",
+        value:
+            streamInfo?.game_name ||
+            "Nieznana",
+        inline: true
+    })
+    .setFooter({
+        text: "Twitch"
+    });
+    if (streamInfo?.thumbnail_url) {
+    embed.setImage(
+        streamInfo.thumbnail_url
+            .replace("{width}", "1280")
+            .replace("{height}", "720")
+    );
+}
 
-        console.log(
-            `Wysłano powiadomienie na kanał ${row.id_kanalu}`
-        );
+await kanal.send({
+    content: wiadomosc,
+    embeds: [embed]
+});
+
+console.log(
+    `Wysłano powiadomienie na kanał ${row.id_kanalu}`
+);
 
     } catch (error) {
 
@@ -361,7 +417,7 @@ client.once("ready", async () => {
 
     console.log(`Zalogowano jako ${client.user.tag}`);
     console.log(`Serwery: ${client.guilds.cache.size}`);
-    
+
     await listSubscriptions();
 
     const rest = new REST({ version: "10" })
